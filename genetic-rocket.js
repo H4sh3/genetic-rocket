@@ -12,7 +12,7 @@ function setup() {
     rotationRange: 15, // range a rotation action can change the rockets rotation
     mutationRate: 0.9, // how likely it is to change a action or a actions value, see mutateActions function
     gravitation: 0.5, // gravitational constant
-    pretrainGenerations: 120, // first n training generations that are not rendered: much faster training
+    pretrainGenerations: 250, // first n training generations that are not rendered: much faster training
     fleetSize: 1000, // number of mutated ships
     initialBlock: 15 // number of iterations till the rocket can perform actions
   }
