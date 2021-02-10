@@ -12,7 +12,7 @@ function setup() {
     rotationRange: 15, // range a rotation action can change the rockets rotation
     mutationRate: 0.9, // how likely it is to change a action or a actions value, see mutateActions function
     gravitation: 0.5, // gravitational constant
-    pretrainGenerations: 250, // first n training generations that are not rendered: much faster training
+    pretrainGenerations: 200, // first n training generations that are not rendered: much faster training
     fleetSize: 1000, // number of mutated ships
     initialBlock: 15 // number of iterations till the rocket can perform actions
   }
@@ -24,6 +24,14 @@ function setup() {
   state.showAll = false
   state.logs = []
   state.generation = 0
+  state.thrustActionSpace = []
+  state.rotationActionSpace = []
+
+  const numActions = 25
+  for (let i = 0; i < numActions; i++) {
+    state.thrustActionSpace.push(map(i,0,numActions,-1,1))
+    state.rotationActionSpace.push(map(i,0,numActions,-15,15))
+  }
 }
 
 function preTraining() {
@@ -48,7 +56,7 @@ function draw() {
 }
 
 function evaluate() {
-  const ships = state.fleet.ships.filter(s => !s.crashed)
+  const ships = state.fleet.ships.filter(s => s.landed)
   if (ships.length > 0) { // some ships didn't crashed, used them for next generation
     const bestActions = getBestActions(ships)
     state.fleet = new Fleet()
@@ -62,24 +70,30 @@ function evaluate() {
 
 function getBestActions(ships) {
   let bestShip = ships[0]
-  let smallestDist = Infinity
+  let smallestVel = Infinity
   for (let i = 0; i < ships.length; i++) {
-    if (ships[i].sumDistCenter < smallestDist) {
-      smallestDist = ships[i].sumDistCenter
+    let lastVel = ships[i].velHistory.slice(ships[i].velHistory.length - 15, ships[i].velHistory.length)
+    let avgVel = lastVel.reduce((acc, v) => {
+      acc += v
+      acc /= 2
+      return acc
+    }, 1)
+    if (avgVel < smallestVel) {
+      smallestVel = avgVel
       bestShip = ships[i]
     }
   }
 
-  state.logs.push(smallestDist)
+  state.logs.push(smallestVel)
   return bestShip.actions
 }
 
 function rotationAction() {
-  return { actionType: ROTATION_CHANGE, value: random(-state.settings.rotationRange, state.settings.rotationRange) }
+  return { actionType: ROTATION_CHANGE, value: random(state.rotationActionSpace) }
 }
 
 function thrustAction() {
-  return { actionType: THRUST_CHANGE, value: random(-state.settings.thrustRange, state.settings.thrustRange) }
+  return { actionType: THRUST_CHANGE, value: random(state.thrustActionSpace) }
 }
 
 function generateActions() {
@@ -141,7 +155,7 @@ class Fleet {
   }
 
   update() {
-    this.ships.filter(s => !s.crashed).forEach(s => {
+    this.ships.filter(s => !s.landed).forEach(s => {
       s.update(this.iteration)
     })
 
@@ -153,7 +167,7 @@ class Fleet {
   }
 
   allShipsCrashed() {
-    return this.ships.filter(s => s.crashed).length == this.fleetSize
+    return this.ships.filter(s => s.landed).length == this.fleetSize
   }
 }
 
@@ -165,7 +179,7 @@ class Ship {
     this.rotation = p5.Vector.fromAngle(radians(90), 1);
     this.size = createVector(10, 20);
     this.thrust = 0;
-    this.crashed = false;
+    this.landed = false;
     this.actionIndex = 0
     this.velHistory = []
     this.reward = 0
@@ -184,7 +198,7 @@ class Ship {
   update(i) {
     const acc = createVector(0, state.settings.gravitation)
     if (this.pos.y >= state.ground.pos.y) {
-      this.crashed = true
+      this.landed = true
     }
 
     if (i > state.settings.initialBlock) {
