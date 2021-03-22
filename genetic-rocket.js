@@ -12,9 +12,9 @@ function setup() {
     rotationRange: 15, // range a rotation action can change the rockets rotation
     mutationRate: 0.9, // how likely it is to change a action or a actions value, see mutateActions function
     gravitation: 0.5, // gravitational constant
-    pretrainGenerations: 200, // first n training generations that are not rendered: much faster training
+    pretrainGenerations: 25, // first n training generations that are not rendered: much faster training
     fleetSize: 1000, // number of mutated ships
-    initialBlock: 15 // number of iterations till the rocket can perform actions
+    initialBlock: 25 // number of iterations till the rocket can perform actions
   }
   state.ground = new Ground()
   state.center = createVector(width / 2, state.ground.pos.y)
@@ -29,8 +29,8 @@ function setup() {
 
   const numActions = 25
   for (let i = 0; i < numActions; i++) {
-    state.thrustActionSpace.push(map(i,0,numActions,-1,1))
-    state.rotationActionSpace.push(map(i,0,numActions,-15,15))
+    state.thrustActionSpace.push(map(i, 0, numActions, -1, 1))
+    state.rotationActionSpace.push(map(i, 0, numActions, -15, 15))
   }
 }
 
@@ -72,7 +72,7 @@ function getBestActions(ships) {
   let bestShip = ships[0]
   let smallestVel = Infinity
   for (let i = 0; i < ships.length; i++) {
-    let lastVel = ships[i].velHistory.slice(ships[i].velHistory.length - 15, ships[i].velHistory.length)
+    let lastVel = ships[i].velHistory.slice(ships[i].velHistory.length - 35, ships[i].velHistory.length)
     let avgVel = lastVel.reduce((acc, v) => {
       acc += v
       acc /= 2
@@ -155,8 +155,8 @@ class Fleet {
   }
 
   update() {
-    this.ships.filter(s => !s.landed).forEach(s => {
-      s.update(this.iteration)
+    this.ships.filter(s => !s.landed).forEach((s, i) => {
+      s.update(this.iteration, i)
     })
 
     this.iteration += 1
@@ -184,6 +184,7 @@ class Ship {
     this.velHistory = []
     this.reward = 0
     this.sumDistCenter = 0
+    this.particles = []
   }
 
   changeRotation(value) { // value in degrees
@@ -195,13 +196,13 @@ class Ship {
     this.thrust = this.thrust < 0 ? 0 : this.thrust
   }
 
-  update(i) {
+  update(iteration, index) {
     const acc = createVector(0, state.settings.gravitation)
     if (this.pos.y >= state.ground.pos.y) {
       this.landed = true
     }
 
-    if (i > state.settings.initialBlock) {
+    if (iteration > state.settings.initialBlock) {
       const action = this.actions[this.actionIndex]
 
       if (action.actionType == THRUST_CHANGE) {
@@ -220,5 +221,29 @@ class Ship {
     this.pos.add(this.vel)
     this.velHistory.push(this.vel.mag())
     this.sumDistCenter += this.pos.dist(state.center)
+
+    // particles 
+    if (index == 0) {
+      const repeats = map(this.thrust, 0, 10, 1, 20)
+      for (let i = 0; i < repeats; i++) {
+        this.particles.push(new Particle(this.pos.copy(), 50*this.thrust, this.rotation.copy().mult(-this.thrust)))
+      }
+    }
+
+    this.particles.forEach(p => p.update())
+    this.particles = this.particles.filter(p => p.size > 0)
+  }
+}
+
+class Particle {
+  constructor(pos, size, vel) {
+    this.pos = pos
+    this.size = size
+    this.vel = vel.mult(2)
+  }
+
+  update() {
+    this.pos.add(this.vel)
+    this.size -= 0.5
   }
 }
