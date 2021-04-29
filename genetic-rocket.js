@@ -12,7 +12,7 @@ function setup() {
     rotationRange: 15, // range a rotation action can change the rockets rotation
     mutationRate: 0.9, // how likely it is to change a action or a actions value, see mutateActions function
     gravitation: 0.5, // gravitational constant
-    pretrainGenerations: 25, // first n training generations that are not rendered: much faster training
+    pretrainGenerations: 1, // first n training generations that are not rendered: much faster training
     fleetSize: 1000, // number of mutated ships
     initialBlock: 25 // number of iterations till the rocket can perform actions
   }
@@ -32,6 +32,7 @@ function setup() {
     state.thrustActionSpace.push(map(i, 0, numActions, -1, 1))
     state.rotationActionSpace.push(map(i, 0, numActions, -15, 15))
   }
+  renderEnvironment()
 }
 
 function preTraining() {
@@ -48,6 +49,7 @@ function draw() {
     if (!state.fleet.done()) {
       state.fleet.update()
       renderEnvironment()
+      renderFleet()
     } else {
       evaluate()
     }
@@ -72,7 +74,7 @@ function getBestActions(ships) {
   let bestShip = ships[0]
   let smallestVel = Infinity
   for (let i = 0; i < ships.length; i++) {
-    let lastVel = ships[i].velHistory.slice(ships[i].velHistory.length - 35, ships[i].velHistory.length)
+    let lastVel = ships[i].velHistory.slice(ships[i].velHistory.length - 55, ships[i].velHistory.length)
     let avgVel = lastVel.reduce((acc, v) => {
       acc += v
       acc /= 2
@@ -163,7 +165,7 @@ class Fleet {
   }
 
   done() {
-    return this.allShipsCrashed() || this.iteration > 150
+    return this.allShipsCrashed() || this.iteration > 75
   }
 
   allShipsCrashed() {
