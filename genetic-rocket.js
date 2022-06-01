@@ -4,49 +4,76 @@ const THRUST_CHANGE = "thrust change"
 const ROTATION_CHANGE = "rotation change"
 
 function setup() {
-  createCanvas(700, 700)
+  const canvas = createCanvas(700, 700)
+  canvas.parent("p5Div")
   angleMode(DEGREES)
-  frameRate(45)
+  frameRate(60)
   state.settings = {
     thrustRange: 1, // range a thrust action can change the current thrust
     rotationRange: 15, // range a rotation action can change the rockets rotation
     mutationRate: 0.9, // how likely it is to change a action or a actions value, see mutateActions function
-    gravitation: 0.5, // gravitational constant
-    pretrainGenerations: 1, // first n training generations that are not rendered: much faster training
+    gravitation: 0.3, // gravitational constant
+    pretrainGenerations: 33, // first n training generations that are not rendered: much faster training
     fleetSize: 1000, // number of mutated ships
     initialBlock: 25 // number of iterations till the rocket can perform actions
   }
+  reset()
   state.ground = new Ground()
   state.center = createVector(width / 2, state.ground.pos.y)
   state.landingSpot = createVector(width / 2, height - 50)
-  state.fleet = new Fleet()
-  state.fleet.initFleet()
-  state.showAll = false
-  state.logs = []
-  state.generation = 0
   state.thrustActionSpace = []
   state.rotationActionSpace = []
 
-  const numActions = 25
+  const numActions = 50
   for (let i = 0; i < numActions; i++) {
-    state.thrustActionSpace.push(map(i, 0, numActions, -1, 1))
+    state.thrustActionSpace.push(map(i, 0, numActions, -0.1, 0.1))
     state.rotationActionSpace.push(map(i, 0, numActions, -15, 15))
   }
   renderEnvironment()
 }
 
+function reset() {
+  state.fleet = new Fleet()
+  state.fleet.initFleet()
+  state.logs = []
+  state.generation = 0
+  state.smallesVel = Infinity
+  changeDivStatus("training", false)
+  changeDivStatus("trained", false)
+  changeDivStatus("untrained", true)
+}
+
+function changeDivStatus(name, active) {
+  var element = document.getElementById(name);
+  if (active) {
+    element.classList.add("active");
+  } else {
+    element.classList.remove("active");
+  }
+}
+
 function preTraining() {
-  return state.generation < state.settings.pretrainGenerations
+  return state.generation >= 3 && state.smallesVel > 0.31
 }
 
 function draw() {
   if (preTraining()) { // Run a complete iteration in one draw cycle
+    changeDivStatus("training", true)
+    changeDivStatus("trained", false)
+    changeDivStatus("untrained", false)
     while (!state.fleet.done()) {
       state.fleet.update()
     }
     evaluate()
+    renderLogs()
   } else { // Visualize environment
     if (!state.fleet.done()) {
+      if (state.generation >= 3 && !preTraining()) {
+        changeDivStatus("untrained", false)
+        changeDivStatus("training", false)
+        changeDivStatus("trained", true)
+        renderLogs()
+      }
       state.fleet.update()
       renderEnvironment()
       renderFleet()
@@ -54,7 +81,6 @@ function draw() {
       evaluate()
     }
   }
-  renderLogs()
 }
 
 function evaluate() {
@@ -74,16 +100,20 @@ function getBestActions(ships) {
   let bestShip = ships[0]
   let smallestVel = Infinity
   for (let i = 0; i < ships.length; i++) {
-    let lastVel = ships[i].velHistory.slice(ships[i].velHistory.length - 55, ships[i].velHistory.length)
+    let lastVel = ships[i].velHistory.slice(ships[i].velHistory.length - 120, ships[i].velHistory.length)
     let avgVel = lastVel.reduce((acc, v) => {
       acc += v
       acc /= 2
       return acc
-    }, 1)
+    }, 0)
     if (avgVel < smallestVel) {
       smallestVel = avgVel
       bestShip = ships[i]
     }
+  }
+
+  if (smallestVel < state.smallesVel) {
+    state.smallesVel = smallestVel
   }
 
   state.logs.push(smallestVel)
@@ -143,7 +173,13 @@ class Fleet {
   }
 
   createNextGeneration(actions) {
+    // keep one unmutaded
     this.ships.push(new Ship(actions))
+    // always some new ships
+    while (this.ships.length < 15) {
+      this.ships.push(new Ship())
+    }
+
     while (this.ships.length < this.fleetSize) {
       const newActions = mutateActions(actions)
       this.ships.push(new Ship(newActions))
@@ -165,7 +201,7 @@ class Fleet {
   }
 
   done() {
-    return this.allShipsCrashed() || this.iteration > 75
+    return this.allShipsCrashed() || this.iteration > 125
   }
 
   allShipsCrashed() {
@@ -176,7 +212,7 @@ class Fleet {
 class Ship {
   constructor(actions) {
     this.actions = actions ? actions : generateActions();
-    this.pos = createVector(width / 2, height / 20)
+    this.pos = createVector(width / 2, 50)
     this.vel = createVector(0, 0);
     this.rotation = p5.Vector.fromAngle(radians(90), 1);
     this.size = createVector(10, 20);
@@ -228,7 +264,7 @@ class Ship {
     if (index == 0) {
       const repeats = map(this.thrust, 0, 10, 1, 20)
       for (let i = 0; i < repeats; i++) {
-        this.particles.push(new Particle(this.pos.copy(), 50*this.thrust, this.rotation.copy().mult(-this.thrust)))
+        this.particles.push(new Particle(this.pos.copy(), 50 * this.thrust, this.rotation.copy().mult(-this.thrust)))
       }
     }
 
