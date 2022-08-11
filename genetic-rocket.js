@@ -47,7 +47,9 @@ function changeDivStatus(name, active) {
   var element = document.getElementById(name);
   if (active) {
     element.classList.add("active");
+    element.classList.remove("inactive");
   } else {
+    element.classList.add("inactive");
     element.classList.remove("active");
   }
 }

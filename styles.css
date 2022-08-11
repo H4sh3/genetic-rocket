@@ -1,8 +1,6 @@
 .button {
-    background-color: #4CAF50;
-    /* Green */
-    border: none;
-    color: white;
+    border-width: medium;
+    color: black;
     padding: 15px 32px;
     margin: 15px 15px;
     text-align: center;
@@ -56,4 +54,10 @@
 .active {
     border-color: #4CAF50;
     color: #4CAF50;
+    font-weight: bold;
+}
+
+.inactive {
+    border-color: #aaaaaa;
+    color: #aaaaaa;
 }
