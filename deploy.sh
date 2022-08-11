@@ -1,3 +1,4 @@
 #!/bin/bash
 
-scp -r index.html styles.css genetic-rocket.js ansible@zeta:/opt/daniel-pink/genetic-rocket
+scp index.html styles.css genetic-rocket.js user@zeta:/var/www/projects/genetic-rocket
+scp -r lib user@zeta:/var/www/projects/genetic-rocket
