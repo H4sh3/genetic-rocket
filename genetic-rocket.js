@@ -22,6 +22,7 @@ function setup() {
   state.center = createVector(width / 2, state.ground.pos.y)
   state.landingSpot = createVector(width / 2, height - 50)
   state.thrustActionSpace = []
+  state.bestScore = 0
   state.rotationActionSpace = []
 
   const numActions = 50
@@ -37,7 +38,6 @@ function reset() {
   state.fleet.initFleet()
   state.logs = []
   state.generation = 0
-  state.smallesVel = Infinity
   changeDivStatus("training", false)
   changeDivStatus("trained", false)
   changeDivStatus("untrained", true)
@@ -55,7 +55,7 @@ function changeDivStatus(name, active) {
 }
 
 function preTraining() {
-  return state.generation >= 3 && state.smallesVel > 0.31
+  return (state.generation >= 3 && state.bestScore < 0.8) || state.pretrainGenerations > 0
 }
 
 function draw() {
@@ -68,6 +68,7 @@ function draw() {
     }
     evaluate()
     renderLogs()
+    state.pretrainGenerations--
   } else { // Visualize environment
     if (!state.fleet.done()) {
       if (state.generation >= 3 && !preTraining()) {
@@ -79,14 +80,21 @@ function draw() {
       state.fleet.update()
       renderEnvironment()
       renderFleet()
+      renderLogs()
     } else {
       evaluate()
     }
   }
 }
 
+
+function trainMore() {
+  state.pretrainGenerations = 100
+}
+
 function evaluate() {
   const ships = state.fleet.ships.filter(s => s.landed)
+
   if (ships.length > 0) { // some ships didn't crashed, used them for next generation
     const bestActions = getBestActions(ships)
     state.fleet = new Fleet()
@@ -100,25 +108,32 @@ function evaluate() {
 
 function getBestActions(ships) {
   let bestShip = ships[0]
-  let smallestVel = Infinity
+  let bestScore = -Infinity
+
   for (let i = 0; i < ships.length; i++) {
-    let lastVel = ships[i].velHistory.slice(ships[i].velHistory.length - 120, ships[i].velHistory.length)
+    const ship = ships[i]
+    let lastVel = ship.velHistory.slice(ship.velHistory.length - 120, ship.velHistory.length)
     let avgVel = lastVel.reduce((acc, v) => {
       acc += v
       acc /= 2
       return acc
     }, 0)
-    if (avgVel < smallestVel) {
-      smallestVel = avgVel
-      bestShip = ships[i]
+
+    const distScore = ship.distToCenter
+    const velScore = avgVel
+    const score = 1 / (distScore + velScore)
+    if (score > bestScore) {
+      bestScore = score
+      bestShip = ship
     }
   }
 
-  if (smallestVel < state.smallesVel) {
-    state.smallesVel = smallestVel
+  if (bestScore > state.bestScore) {
+    state.bestScore = bestScore
   }
 
-  state.logs.push(smallestVel)
+  state.logs.push(bestScore)
+
   return bestShip.actions
 }
 
@@ -220,6 +235,7 @@ class Ship {
     this.size = createVector(10, 20);
     this.thrust = 0;
     this.landed = false;
+    this.distToCenter = Infinity
     this.actionIndex = 0
     this.velHistory = []
     this.reward = 0
@@ -240,6 +256,7 @@ class Ship {
     const acc = createVector(0, state.settings.gravitation)
     if (this.pos.y >= state.ground.pos.y) {
       this.landed = true
+      this.distToCenter = this.pos.dist(state.center)
     }
 
     if (iteration > state.settings.initialBlock) {
