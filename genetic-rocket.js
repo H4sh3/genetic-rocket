@@ -55,7 +55,7 @@ function changeDivStatus(name, active) {
 }
 
 function preTraining() {
-  return (state.generation >= 3 && state.bestScore < 0.8) || state.pretrainGenerations > 0
+  return (state.generation >= 1 && state.bestScore < 0.8) || state.pretrainGenerations > 0
 }
 
 function draw() {
