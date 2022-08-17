@@ -22,7 +22,7 @@ function setup() {
   state.center = createVector(width / 2, state.ground.pos.y)
   state.landingSpot = createVector(width / 2, height - 50)
   state.thrustActionSpace = []
-  state.bestScore = 0
+  state.fitness = 0
   state.rotationActionSpace = []
 
   const numActions = 50
@@ -38,6 +38,7 @@ function reset() {
   state.fleet.initFleet()
   state.logs = []
   state.generation = 0
+  state.fitness = 0
   changeDivStatus("training", false)
   changeDivStatus("trained", false)
   changeDivStatus("untrained", true)
@@ -55,7 +56,7 @@ function changeDivStatus(name, active) {
 }
 
 function preTraining() {
-  return (state.generation >= 1 && state.bestScore < 0.8) || state.pretrainGenerations > 0
+  return (state.generation >= 1 && state.fitness < 0.8) || state.pretrainGenerations > 0
 }
 
 function draw() {
@@ -108,7 +109,7 @@ function evaluate() {
 
 function getBestActions(ships) {
   let bestShip = ships[0]
-  let bestScore = -Infinity
+  let fitness = -Infinity
 
   for (let i = 0; i < ships.length; i++) {
     const ship = ships[i]
@@ -122,17 +123,17 @@ function getBestActions(ships) {
     const distScore = ship.distToCenter
     const velScore = avgVel
     const score = 1 / (distScore + velScore)
-    if (score > bestScore) {
-      bestScore = score
+    if (score > fitness) {
+      fitness = score
       bestShip = ship
     }
   }
 
-  if (bestScore > state.bestScore) {
-    state.bestScore = bestScore
+  if (fitness > state.fitness) {
+    state.fitness = fitness
   }
 
-  state.logs.push(bestScore)
+  state.logs.push(fitness)
 
   return bestShip.actions
 }
